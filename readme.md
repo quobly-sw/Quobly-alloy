@@ -1,7 +1,7 @@
 # Quobly forge emulator
 <img src="https://github.com/quobly-sw/.github/raw/main/Quobly-longeur.png" width=200>
 
-Forge-emulator is an emulator of the Quobly machine.
+The Quobly-alloy SDK adresses Quobly QPUs such as Alloy Pioneer and their emulators using the forge module.
 
 ## Installation
 
@@ -13,11 +13,12 @@ pip install quobly-alloy
 
 ## Use
 
-The minimal program to call the simulator is
+The minimal program to call an emulator such as the Pioneer emulator is
 
 ``` python
 from qiskit import QuantumCircuit
-from quobly_alloy import PioneerEmulator, QPU
+from quobly_alloy.forge import PioneerEmulator
+from quobly_alloy import QPU
 
 circuit = QuantumCircuit(2)
 circuit.rx(3.14, 1)
@@ -33,7 +34,7 @@ print(result)
 ```
 
 This code first create a circuit of 2 qubits, then simulate it on the PIONEER_P10 machine using run simulation.
-The methods QuoblyQpuEmulator.run_simulation simulate a circuit for one ten shots.
+The methods PioneerEmualtor.run_simulation simulate a circuit for one ten shots.
 This return a dictionary[str,int] composed of key being the bitstring of the machine and values being the number of time the bitstring appears.
 
 One can also use the function run, that return a QuoblyJob object (inheriting from Qiskit.Job) with the methods QuoblyJob.result that return the same result as run_simulation. This methods exist for adherence
