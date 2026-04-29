@@ -1,5 +1,4 @@
 # Quobly forge emulator
-<img src="https://github.com/quobly-sw/SpinPulse/raw/main/assets/SpinPulse.png" width=200>
 Forge-emulator is an emulator of the Quobly machine.
 
 ## Installation
