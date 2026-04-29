@@ -1,5 +1,6 @@
 # Quobly forge emulator
 <img src="https://github.com/quobly-sw/.github/raw/main/Quobly-longeur.png" width=200>
+
 Forge-emulator is an emulator of the Quobly machine.
 
 ## Installation
@@ -31,7 +32,7 @@ print(result)
 
 ```
 
-This code first create a circuit of 2 qubits, then simulate it on the QB_SiSpin_1 machine using run simulation.
+This code first create a circuit of 2 qubits, then simulate it on the PIONEER_P10 machine using run simulation.
 The methods QuoblyQpuEmulator.run_simulation simulate a circuit for one ten shots.
 This return a dictionary[str,int] composed of key being the bitstring of the machine and values being the number of time the bitstring appears.
 
