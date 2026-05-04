@@ -9,6 +9,7 @@ build-backend = "setuptools.build_meta"
 
   name = "quobly-alloy"
   readme = "readme.md"
+  description = "Quobly QPU SDK."
   requires-python = ">=3.11"
   authors = [
     { name = "Jonathan Durandau" },
