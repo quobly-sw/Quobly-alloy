@@ -81,14 +81,14 @@ def generate_environment(
     coupling_map: CouplingMap = CouplingMap(coupling)
     """Coupling map of the QPU (LINEAR)"""
 
-    target = Target(num_qubits=_DEFAULT_QUBIT)
+    target = Target(num_qubits=nb_qubit)
 
     rx_ry_qubit_target = {  # Qubit Targeting for rx and ry gate
-        (q,): InstructionProperties(duration=0.000001) for q in range(_DEFAULT_QUBIT)
+        (q,): InstructionProperties(duration=0.000001) for q in range(nb_qubit)
     }
 
     rz_qubit_target = {  # Qubit Targeting for rz gate
-        (q,): InstructionProperties(duration=0.0000001) for q in range(_DEFAULT_QUBIT)
+        (q,): InstructionProperties(duration=0.0000001) for q in range(nb_qubit)
     }
 
     target.add_instruction(RXGate(theta=0), rx_ry_qubit_target)
