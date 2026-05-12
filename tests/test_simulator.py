@@ -128,3 +128,29 @@ def test_bad_circuit(emulator, circuit):
 
 def test_max_circuit(emulator):
     assert emulator.max_circuits() == 1
+
+
+@pytest.mark.parametrize("nb_qb", [2, 3, 5])
+def test_noiseless_ghz_is_clean(nb_qb):
+    """A noiseless GHZ circuit must only ever measure all-zeros or all-ones.
+
+    Regression test: ``run_simulation`` must echo every ``rzz`` gate before pulse
+    conversion. Otherwise each ``rzz`` leaks a large spurious single-qubit Z (Stark)
+    phase from the detuning pulses and the prepared state collapses into a spread of
+    incorrect bitstrings (GHZ-2 fidelity was ~0.64 before the fix).
+    """
+    backend = PioneerEmulator(QPU.PIONEER_P10, qubits=nb_qb, seed=100)
+    circuit = QuantumCircuit(nb_qb)
+    circuit.h(0)
+    for target in range(1, nb_qb):
+        circuit.cx(0, target)
+    circuit.measure_all()
+    circuit = transpile(circuits=circuit, backend=backend, optimization_level=1)
+
+    counts = backend.run_simulation(circuit, 50, noise=False)
+
+    expected = {"0" * nb_qb, "1" * nb_qb}
+    assert set(counts) <= expected, (
+        f"noiseless GHZ produced non-GHZ outcomes: {set(counts) - expected}"
+    )
+    assert sum(counts.values()) == 50
