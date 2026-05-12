@@ -4,6 +4,7 @@
 """Module containing the Quobly Noise Accurate Simulator"""
 
 from qiskit import QuantumCircuit
+from qiskit.converters import circuit_to_dag
 from qiskit.providers import Job, Options
 from qiskit.providers.fake_provider import GenericBackendV2
 from qiskit.transpiler import CouplingMap, Target
@@ -140,10 +141,24 @@ class PioneerEmulator(GenericBackendV2):
         )
         res: dict[str, int] = {}
 
-        pulse_circ: PulseCircuit = PulseCircuit.from_circuit(
-            circ=circuit,
-            hardware_specs=self.options.get("specs"),
+        specs = self.options.get("specs")
+        # spin-pulse's pulse-level realisation of an ``rzz`` gate detunes the two
+        # qubits (a strong Z field on each, of opposite sign) for the whole duration
+        # of the exchange pulse. That detuning is what suppresses the unwanted
+        # XX + YY part of the Heisenberg coupling, but it also imprints a large
+        # spurious single-qubit Z (Stark) phase that is *only* cancelled when every
+        # ``rzz`` is wrapped in an X echo -- exactly what ``HardwareSpecs.second_pass``
+        # (``RZZEchoPass`` + ``Optimize1qGatesDecomposition``) does. Without this step
+        # each ``rzz`` corrupts the state, so run the ISA echo pass before building
+        # the pulse circuit. ``circuit`` is kept as the PulseCircuit's original
+        # circuit so its transpile layout is still available to
+        # ``PulseCircuit.get_logical_bitstring`` for undoing the routing permutation.
+        isa_dag = circuit_to_dag(specs.second_pass.run(circuit))
+        pulse_circ: PulseCircuit = PulseCircuit.from_dag_circuit(
+            isa_dag,
+            hardware_specs=specs,
             exp_env=self.options.get("env") if noise else None,
+            original_circuit=circuit,
         )
         for shot in range(shots):
             # Each shot need to regenerate the noise with spin-pulse attach_time_traces
