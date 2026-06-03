@@ -29,7 +29,7 @@ dependencies = [
     "mypy",
     "qiskit>2.2",
     "qiskit-aer>=0.17",
-    "spin-pulse>=1.0"
+    "spin-pulse>=1.1"
   ]
 
 [project.urls]
