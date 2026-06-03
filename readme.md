@@ -28,7 +28,7 @@ circuit.rzz(0, 0, 1)
 circuit.measure_all()
 
 emulator = PioneerEmulator(QPU.PIONEER_P10)
-result = emulator.run_simulation(circuit,10)
+result = emulator.run_simulation(circuit,shots=1000)
 print(result)
 
 ```
@@ -44,14 +44,14 @@ Furthermore, one can fix a seed using
 
 ```python
 emulator = PioneerEmulator(QPU.PIONEER_P10,seed = 100)
-result = emulator.run_simulation(circuit=circuit,shots=100)
+result = emulator.run_simulation(circuit=circuit,shots=1000)
 ```
 
 You can also remove the injected noise using:
 
 ```python
 emulator = PioneerEmulator(QPU.PIONEER_P10)
-result = emulator.run_simulation(circuit=circuit,shots=100,noise=False)
+result = emulator.run_simulation(circuit=circuit,shots=1000,noise=False)
 ```
 
 Finally you can change the number of qubits using:
