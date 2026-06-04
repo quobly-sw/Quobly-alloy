@@ -84,6 +84,27 @@ def test_equivalence_qubits():
     assert r1.samples == r2.samples
 
 
+def test_non_equivalence_qubits():
+    backend = PioneerEmulator(QPU.PIONEER_P10)
+    circuit = QuantumCircuit(5)
+    circuit.h(0)
+    circuit.h(1)
+    circuit.h(2)
+    circuit.measure_all()
+    circuit = transpile(circuits=circuit, backend=backend, seed_transpiler=100)
+    r1 = backend.run(circuit, 50)
+
+    backend = PioneerEmulator(QPU.PIONEER_P10)
+    circuit = QuantumCircuit(5)
+    circuit.h(0)
+    circuit.h(1)
+    circuit.h(2)
+    circuit.measure_all()
+    circuit = transpile(circuits=circuit, backend=backend, seed_transpiler=100)
+    r2 = backend.run(circuit, 50)
+    assert r1.samples != r2.samples
+
+
 def test_execute_noiseless(emulator):
     circuit = QuantumCircuit(3)
     circuit.rx(3.14, 0)
@@ -154,3 +175,14 @@ def test_noiseless_ghz_is_clean(nb_qb):
         f"noiseless GHZ produced non-GHZ outcomes: {set(counts) - expected}"
     )
     assert sum(counts.values()) == 50
+
+
+def test_time_duration():
+    emu = PioneerEmulator(QPU.PIONEER_P10, qubits=11, seed=1)
+    qc = QuantumCircuit(11)
+    qc.h(0)
+    for k in range(1, 11):
+        qc.cx(0, k)
+    tc = transpile(qc, backend=emu, optimization_level=1)
+
+    emu.run_simulation(tc, 5)
