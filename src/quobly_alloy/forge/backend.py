@@ -133,9 +133,7 @@ class PioneerEmulator(GenericBackendV2):
         if self._seed is not None:
             self.options.get("env").seed = self._seed
         self._state_vector_simulator = AerSimulator(
-            method="density_matrix",
-            matrix_product_state_max_bond_dimension=int(2e10),
-            matrix_product_state_truncation_threshold=10e-3,
+            method="statevector",
             seed_simulator=self._seed,
         )
         res: dict[str, int] = {}
