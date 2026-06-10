@@ -21,10 +21,10 @@ from quobly_alloy.forge import PioneerEmulator
 from quobly_alloy import QPU
 
 circuit = QuantumCircuit(2)
-circuit.rx(3.14, 1)
-circuit.rz(3.14 / 3, 0)
-circuit.rx(3.14 / 3, 0)
-circuit.rzz(0, 0, 1)
+circuit.rx(1, 1)
+circuit.rz(1, 0)
+circuit.rx(1, 0)
+circuit.rzz(1, 0, 1)
 circuit.measure_all()
 
 emulator = PioneerEmulator(QPU.PIONEER_P10)
@@ -63,6 +63,8 @@ result = emulator.run_simulation(circuit=circuit)
 
 [!CAUTION] The number of possible qubits is dependant of the computer memory size.
 
+## Using the backend for qiskit transpilation
+
 The backend can also be use in the qiskit transpilation stack:
 
 ```python
@@ -78,4 +80,27 @@ circuit.cx(0,2)
 transpiled_circuit = transpile(qc, backend=emu, optimization_level=1)
 result = emulator.run_simulation(circuit=transpiled_circuit)
 ```
+
 For using the backend with the qiskit transpiler, we recommend fixing the optimization_level to 0 or 1 for a quick transpilation.
+
+## Using qiskit-aer-gpu for cuda 12
+
+As of no, qiskit 2.x does not support cuda 12, but conda [does](https://anaconda.org/channels/conda-forge/packages/qiskit-aer/files?file_q=cuda12). 
+
+On your conda environment you can install the correct package using
+
+```bash
+conda install -c conda-forge "qiskit-aer=0.17.2=*cuda*" cuda-version=12
+```
+You can then check if the gpu is correctly found using:
+
+```bash
+python -c "from qiskit_aer import AerSimulator; print('GPU' in AerSimulator().available_devices())"
+```
+
+You can then use the backend as normal, the backend prioritize the GPU device if found. 
+You can force the use of the CPU using:
+
+```python
+emulator = PioneerEmulator(QPU.PIONEER_P10,always_use_cpu = True)
+```

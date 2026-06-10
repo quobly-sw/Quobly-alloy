@@ -72,10 +72,18 @@ class PioneerEmulator(GenericBackendV2):
     """Backend coupling map, qiskit framework specification"""
     _seed: int | None
     """Seed"""
+    _always_use_cpu: bool
+    """Force the backend to always use the CPU qiskit aer, otherwise the backend
+    will use the gpu if possible."""
 
     def __init__(
-        self, target_qpu: QPU, qubits: int | None = None, seed: int | None = None
+        self,
+        target_qpu: QPU,
+        qubits: int | None = None,
+        seed: int | None = None,
+        always_use_cpu: bool = False,
     ):
+        self._always_use_cpu = always_use_cpu
         if target_qpu not in [QPU.PIONEER_P10]:
             raise ValueError(f"{target_qpu} is not supported by PioneerEmulator.")
         self._target, self._options, self.native_gate, self._coupling_map = (
@@ -93,6 +101,20 @@ class PioneerEmulator(GenericBackendV2):
         qiskit framework specification
         """
         return 1
+
+    def _get_state_vector_simulator(self, seed: int | None) -> AerSimulator:
+        """Return an AerSimulator using the GPU if available, otherwise a CPU one."""
+        if "GPU" in AerSimulator().available_devices():
+            return AerSimulator(
+                method="statevector",
+                device="GPU",
+                seed_simulator=seed,
+            )
+        else:
+            return AerSimulator(
+                method="statevector",
+                seed_simulator=seed,
+            )
 
     def run_simulation(
         self,
@@ -132,12 +154,8 @@ class PioneerEmulator(GenericBackendV2):
                 )
         if self._seed is not None:
             self.options.get("env").seed = self._seed
-        self._state_vector_simulator = AerSimulator(
-            method="statevector",
-            seed_simulator=self._seed,
-        )
+        self._state_vector_simulator = self._get_state_vector_simulator(self._seed)
         res: dict[str, int] = {}
-
         pulse_circ: PulseCircuit = PulseCircuit.from_circuit(
             circ=circuit,
             hardware_specs=self.options.get("specs"),
@@ -161,9 +179,8 @@ class PioneerEmulator(GenericBackendV2):
                 pulse_circ.attach_time_traces(self.options.get("env"))
             if self._seed:  # The seed is changed in a deterministic way
                 # to simulate time going forward. the 70 factor is arbitrary
-                self._state_vector_simulator = AerSimulator(
-                    method="statevector",
-                    seed_simulator=self._seed + 70 * shot,
+                self._state_vector_simulator = self._get_state_vector_simulator(
+                    self._seed + 70 * shot
                 )
 
         logical_q: dict[str, int] = {}
