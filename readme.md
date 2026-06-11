@@ -63,25 +63,9 @@ result = emulator.run_simulation(circuit=circuit)
 
 [!CAUTION] The number of possible qubits is dependant of the computer memory size.
 
-## Using the backend for qiskit transpilation
+## Transpilation
 
-The backend can also be use in the qiskit transpilation stack:
-
-```python
-from qiskit import QuantumCircuit, transpile
-from quobly_alloy import QPU
-from quobly_alloy.forge import PioneerEmulator
-from spin_pulse import PulseCircuit
-
-backend = PioneerEmulator(QPU.PIONEER_P10)
-circuit = QuantumCircuit(3)
-circuit.cx(0,1)
-circuit.cx(0,2)
-transpiled_circuit = transpile(qc, backend=emu, optimization_level=1)
-result = emulator.run_simulation(circuit=transpiled_circuit)
-```
-
-For using the backend with the qiskit transpiler, we recommend fixing the optimization_level to 0 or 1 for a quick transpilation.
+The transpilation is done internally by the backend.
 
 ## Using qiskit-aer-gpu for cuda 12
 

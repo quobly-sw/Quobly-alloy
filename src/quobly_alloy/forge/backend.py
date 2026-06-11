@@ -3,10 +3,11 @@
 # --------------------------------------------------------------------------------------
 """Module containing the Quobly Noise Accurate Simulator"""
 
+from typing import Callable
+
 from qiskit import QuantumCircuit
 from qiskit.providers import Job, Options
 from qiskit.providers.fake_provider import GenericBackendV2
-from qiskit.transpiler import CouplingMap, Target
 from qiskit_aer import AerSimulator
 from spin_pulse import PulseCircuit
 
@@ -15,7 +16,7 @@ from quobly_alloy.qpu import QPU
 
 def get_qpu_hw_spec(
     qpu: QPU, qubits: int | None = None, seed: int | None = None
-) -> tuple[Target, Options, list[str], CouplingMap]:
+) -> tuple[Options, int, list[str], list, Callable]:
     """
     Return a tuple describing the configured target qpu.
 
@@ -29,11 +30,19 @@ def get_qpu_hw_spec(
     """
     match qpu:
         case QPU.PIONEER_P10:
-            from quobly_alloy.forge.pioneer_p10 import generate_environment
+            from quobly_alloy.forge.pioneer_p10 import (
+                attach_env_to_circuit,
+                generate_environment,
+            )
 
-            return generate_environment(qubits, seed)
+            return (*generate_environment(qubits, seed), attach_env_to_circuit)
         case _:
             raise ValueError(f"Unknown qpu {qpu}")
+
+
+def _seed_continuation(old_seed: int) -> int:
+    """Return a new seed following an arithmetic series."""
+    return old_seed + 70
 
 
 class QuoblyJob(Job):
@@ -62,19 +71,15 @@ class QuoblyJob(Job):
 class PioneerEmulator(GenericBackendV2):
     """Pioneer Quobly Hardware Qpu emulator using Spin Pulse."""
 
-    _target: Target
-    """Backend target, qiskit framework specification"""
     _options: Options
     """Qiskit backend options, qiskit framework specification"""
-    native_gate: list[str]
-    """List of bakcend's native gate"""
-    _coupling_map: CouplingMap
-    """Backend coupling map, qiskit framework specification"""
     _seed: int | None
     """Seed"""
     _always_use_cpu: bool
     """Force the backend to always use the CPU qiskit aer, otherwise the backend
     will use the gpu if possible."""
+    _env_generative_function: Callable
+    """Function to generate and attach the environment to the pulse circuit."""
 
     def __init__(
         self,
@@ -86,15 +91,14 @@ class PioneerEmulator(GenericBackendV2):
         self._always_use_cpu = always_use_cpu
         if target_qpu not in [QPU.PIONEER_P10]:
             raise ValueError(f"{target_qpu} is not supported by PioneerEmulator.")
-        self._target, self._options, self.native_gate, self._coupling_map = (
+        options, nb_qbit, basis_gates, coupling_map, self._env_generative_function = (
             get_qpu_hw_spec(target_qpu, qubits=qubits, seed=seed)
         )
         self._seed = seed
-
-    @property
-    def target(self) -> Target:
-        """Return the backend target, qiskit framework specification"""
-        return self._target
+        super().__init__(
+            num_qubits=nb_qbit, basis_gates=basis_gates, coupling_map=coupling_map
+        )
+        self._options = options
 
     def max_circuits(self) -> int:
         """Return the max number of parallel circuit the backend can run,
@@ -143,51 +147,33 @@ class PioneerEmulator(GenericBackendV2):
                 f"The number of shots {shots} is too small for the qpu (1 minimum)."
             )
 
-        for gate in circuit.data:
-            if (
-                not (gate.name in self.native_gate and gate.is_standard_gate())
-                and gate.name != "barrier"
-                and gate.name != "measure"
-            ):
-                raise ValueError(
-                    f"{gate.name} is not present in the native set {self.native_gate}."
-                )
-        if self._seed is not None:
-            self.options.get("env").seed = self._seed
         self._state_vector_simulator = self._get_state_vector_simulator(self._seed)
-        res: dict[str, int] = {}
+
+        hardware_spec = self.options.get("specs")
         pulse_circ: PulseCircuit = PulseCircuit.from_circuit(
-            circ=circuit,
+            circ=hardware_spec.gate_transpile(circuit),
             hardware_specs=self.options.get("specs"),
-            exp_env=self.options.get("env") if noise else None,
+            exp_env=None,
         )
-        for shot in range(shots):
-            # Each shot need to regenerate the noise with spin-pulse attach_time_traces
-            circ = pulse_circ.to_circuit(True)
-            result = (
-                self._state_vector_simulator.run([(circ)], shots=1).result().get_counts()
+        if noise:
+            env = self._env_generative_function(
+                self.options.get("specs"), pulse_circ, shots, self._seed
             )
-            for state, sample in result.items():
-                k_sample = state.split(" ")[0]
-                if k_sample in res:
-                    res[k_sample] += sample
-                else:
-                    res[k_sample] = sample
+        else:
+            env = None
+        result = pulse_circ.run_experiment(
+            env,
+            self._state_vector_simulator,
+            shots,
+            False,
+            _seed_continuation if self._seed else None,
+        )
 
-            if noise:
-                pulse_circ.t_lab = 0
-                pulse_circ.attach_time_traces(self.options.get("env"))
-            if self._seed:  # The seed is changed in a deterministic way
-                # to simulate time going forward. the 70 factor is arbitrary
-                self._state_vector_simulator = self._get_state_vector_simulator(
-                    self._seed + 70 * shot
-                )
-
-        logical_q: dict[str, int] = {}
-        for key in res:
-            logical_q[pulse_circ.get_logical_bitstring(key)] = res[key]
+        qreg = {}
+        for key in result:
+            qreg[key.split(" ")[0]] = result[key]
         return dict(
-            sorted(logical_q.items(), key=lambda key: int(key[0], max(2, len(key[0]))))
+            sorted(qreg.items(), key=lambda key: int(key[0], max(2, len(key[0]))))
         )
 
     def run(
