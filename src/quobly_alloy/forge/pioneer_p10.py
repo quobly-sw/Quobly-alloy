@@ -16,6 +16,9 @@ from spin_pulse.environment.noise import NoiseType
 _DEFAULT_QUBIT: Final[int] = 10
 """Max default number of qubits in the QPU"""
 
+_QUBIT_MAX: Final[int] = 29
+"""Max number of qubit for this family."""
+
 _NATIVE_GATE_SET: Final[list[str]] = ["rx", "rz", "ry", "rzz"]
 """Native gate set of the QPU"""
 
@@ -49,7 +52,8 @@ def generate_environment(
     """
     if nb_qubit is None:
         nb_qubit = _DEFAULT_QUBIT
-
+    if nb_qubit > _QUBIT_MAX:
+        raise ValueError(f"Max number of qubit for Pioneer is {_QUBIT_MAX} qubits.")
     # Spin pulse hardware specs & environnement
     specs: HardwareSpecs = HardwareSpecs(
         num_qubits=nb_qubit,
