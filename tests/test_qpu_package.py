@@ -1,6 +1,7 @@
 # --------------------------------------------------------------------------------------
 # Copyright (c) 2026 by Quobly
 # --------------------------------------------------------------------------------------
+import pytest
 from qiskit.providers import Options
 from qiskit.transpiler import CouplingMap, Target
 
@@ -17,3 +18,8 @@ def test_qpu_exist():
         assert isinstance(res[1], Options)
         assert isinstance(res[2], list)
         assert isinstance(res[3], CouplingMap)
+
+
+def test_max_qb():
+    with pytest.raises(ValueError):
+        get_qpu_hw_spec(QPU.PIONEER_P10, qubits=30)
