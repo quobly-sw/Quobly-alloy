@@ -20,12 +20,10 @@ def test_init(emulator):
 
 
 def test_execute(emulator, circuit):
-    circuit = transpile(circuits=circuit, backend=emulator)
     assert emulator.run_simulation(circuit, 5)
 
 
 def test_execute_seed_no_superposition(emulator, circuit):
-    circuit = transpile(circuits=circuit, backend=emulator)
     r1 = emulator.run_simulation(circuit, 5)
     r2 = emulator.run_simulation(circuit, 5)
     assert list(r1.values()) == list(r2.values())
@@ -39,7 +37,6 @@ def test_execute_seed_superposition(qpu):
     circuit.h(2)
     circuit.measure_all()
     backend = PioneerEmulator(qpu, seed=100)
-    circuit = transpile(circuits=circuit, backend=backend)
     r1 = backend.run_simulation(circuit, 20)
     r2 = backend.run_simulation(circuit, 20)
     assert list(r1.values()) == list(r2.values())
@@ -49,7 +46,6 @@ def test_execute_seed_superposition(qpu):
 def test_execute_empty_circuit(qpu):
     backend = PioneerEmulator(qpu, seed=100)
     circuit = QuantumCircuit(3)
-    circuit = transpile(circuits=circuit, backend=backend)
     r1 = backend.run(circuit, 5)
     assert next(iter(r1.samples.values())) == 5
 
@@ -58,7 +54,6 @@ def test_execute_empty_circuit(qpu):
 def test_mutiple_qubit(nb_qb):
     backend = PioneerEmulator(QPU.PIONEER_P10, qubits=nb_qb, seed=100)
     circuit = QuantumCircuit(nb_qb)
-    circuit = transpile(circuits=circuit, backend=backend)
     r1 = backend.run(circuit, 5)
     assert next(iter(r1.samples.values())) == 5
 
@@ -70,7 +65,6 @@ def test_equivalence_qubits():
     circuit.h(1)
     circuit.h(2)
     circuit.measure_all()
-    circuit = transpile(circuits=circuit, backend=backend, seed_transpiler=100)
     r1 = backend.run(circuit, 50)
 
     backend = PioneerEmulator(QPU.PIONEER_P10, seed=100)
@@ -79,7 +73,6 @@ def test_equivalence_qubits():
     circuit.h(1)
     circuit.h(2)
     circuit.measure_all()
-    circuit = transpile(circuits=circuit, backend=backend, seed_transpiler=100)
     r2 = backend.run(circuit, 50)
     assert r1.samples == r2.samples
 
@@ -91,7 +84,6 @@ def test_non_equivalence_qubits():
     circuit.h(1)
     circuit.h(2)
     circuit.measure_all()
-    circuit = transpile(circuits=circuit, backend=backend, seed_transpiler=100)
     r1 = backend.run(circuit, 50)
 
     backend = PioneerEmulator(QPU.PIONEER_P10)
@@ -100,7 +92,6 @@ def test_non_equivalence_qubits():
     circuit.h(1)
     circuit.h(2)
     circuit.measure_all()
-    circuit = transpile(circuits=circuit, backend=backend, seed_transpiler=100)
     r2 = backend.run(circuit, 50)
     assert r1.samples != r2.samples
 
@@ -111,7 +102,6 @@ def test_execute_noiseless(emulator):
     circuit.cx(0, 1)
     circuit.cx(1, 2)
     circuit.measure_all()
-    circuit = transpile(circuits=circuit, backend=emulator)
     r1 = emulator.run(circuit, 25, noise=False)
     r2 = emulator.run(circuit, 25)
     assert list(r1.samples.values()) != list(r2.samples.values())
@@ -135,16 +125,9 @@ def test_not_enough_shots(emulator):
     circuit.rx(3.14, 1)
     circuit.measure_all()
 
-    circuit = transpile(circuits=circuit, backend=emulator)
     with pytest.raises(ValueError) as excinfo:
         emulator.run_simulation(circuit, 0)
     assert "The number of shots" in str(excinfo.value)
-
-
-def test_bad_circuit(emulator, circuit):
-    with pytest.raises(ValueError) as excinfo:
-        emulator.run_simulation(circuit, 3)
-    assert "is not present" in str(excinfo.value)
 
 
 def test_max_circuit(emulator):
@@ -166,7 +149,6 @@ def test_noiseless_ghz_is_clean(nb_qb):
     for target in range(1, nb_qb):
         circuit.cx(0, target)
     circuit.measure_all()
-    circuit = transpile(circuits=circuit, backend=backend, optimization_level=1)
 
     counts = backend.run_simulation(circuit, 50, noise=False)
 
@@ -186,3 +168,13 @@ def test_time_duration():
     tc = transpile(qc, backend=emu, optimization_level=1)
 
     emu.run_simulation(tc, 5)
+
+
+def test_seed_regression(emulator):
+    circuit = QuantumCircuit(3)
+    circuit.rx(3.14, 0)
+    circuit.cx(0, 1)
+    circuit.cx(1, 2)
+    circuit.measure_all()
+    r1 = emulator.run(circuit, 25)
+    assert len(r1.samples.values()) > 1

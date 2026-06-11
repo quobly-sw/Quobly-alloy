@@ -6,11 +6,8 @@
 from typing import Final
 
 import numpy as np
-from qiskit.circuit import Measure
-from qiskit.circuit.library import RXGate, RYGate, RZGate, RZZGate
 from qiskit.providers import Options
-from qiskit.transpiler import CouplingMap, InstructionProperties, Target
-from spin_pulse import ExperimentalEnvironment, HardwareSpecs, Shape
+from spin_pulse import ExperimentalEnvironment, HardwareSpecs, PulseCircuit, Shape
 from spin_pulse.environment.noise import NoiseType
 
 _DEFAULT_QUBIT: Final[int] = 10
@@ -18,9 +15,6 @@ _DEFAULT_QUBIT: Final[int] = 10
 
 _QUBIT_MAX: Final[int] = 29
 """Max number of qubit for this family."""
-
-_NATIVE_GATE_SET: Final[list[str]] = ["rx", "rz", "ry", "rzz"]
-"""Native gate set of the QPU"""
 
 _t_z = 100
 _t_x = 1_000
@@ -42,7 +36,7 @@ _TJS = 5_000
 
 def generate_environment(
     nb_qubit: int | None, seed: int | None = None
-) -> tuple[Target, Options, list[str], CouplingMap]:
+) -> tuple[Options, int, list[str], list]:
     """Generate the qpu environnement and target.
 
     Args:
@@ -65,47 +59,28 @@ def generate_environment(
         coeff_duration=_coeff_duration,
     )
 
+    option = Options(specs=specs)
+
+    return option, nb_qubit, specs.basis_gates, specs.coupling_map
+
+
+def attach_env_to_circuit(
+    specs, circuit: PulseCircuit, shots_number: int, seed: int | None
+) -> ExperimentalEnvironment:
+    duration = circuit.duration * max(10, shots_number)
+    if duration % 2 == 1:  # Odd value are not accepted by spin pulse.
+        duration += 1
+    if duration == 0:  # Edge case of empty circuit
+        duration = 2
     env: ExperimentalEnvironment = ExperimentalEnvironment(
         specs,
         noise_type=NoiseType.PINK,
         T2S=_T2S,
         TJS=_TJS,
-        duration=2**20,
-        segment_duration=2**20,
+        duration=duration,
+        segment_duration=duration,
         only_idle=False,
         seed=seed,
     )
-
-    coupling: list[list[int]] = []
-    for qubit in range(nb_qubit - 1):
-        coupling.append([qubit, qubit + 1])
-    for qubit in range(nb_qubit - 1, 0, -1):
-        coupling.append([qubit, qubit - 1])
-
-    coupling_map: CouplingMap = CouplingMap(coupling)
-    """Coupling map of the QPU (LINEAR)"""
-
-    target = Target(num_qubits=nb_qubit)
-
-    rx_ry_qubit_target = {  # Qubit Targeting for rx and ry gate
-        (q,): InstructionProperties(duration=0.000001) for q in range(nb_qubit)
-    }
-
-    rz_qubit_target = {  # Qubit Targeting for rz gate
-        (q,): InstructionProperties(duration=0.0000001) for q in range(nb_qubit)
-    }
-
-    target.add_instruction(RXGate(theta=0), rx_ry_qubit_target)
-    target.add_instruction(RYGate(theta=0), rx_ry_qubit_target)
-    target.add_instruction(RZGate(phi=0), rz_qubit_target)
-    target.add_instruction(Measure(), rx_ry_qubit_target)
-
-    two_qubit_target = {  # Qubit Targeting for rzz and ry gate
-        (ctrl, tgt): InstructionProperties(duration=0.000003)
-        for ctrl, tgt in coupling_map
-    }
-    target.add_instruction(RZZGate(theta=0), two_qubit_target)
-
-    option = Options(specs=specs, env=env)
-
-    return target, option, _NATIVE_GATE_SET, coupling_map
+    circuit.attach_time_traces(env)
+    return env
