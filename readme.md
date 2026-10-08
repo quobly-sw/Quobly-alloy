@@ -70,6 +70,38 @@ result = emulator.run_simulation(circuit=circuit)
 
 [!CAUTION] The number of possible qubits is dependant of the computer memory size.
 
+## Disk-backed noise histories
+
+*Documentation added by Kenny Heitritter in 2026.*
+
+With a SpinPulse build containing
+[disk-backed pink-noise support](https://github.com/quobly-sw/SpinPulse/pull/26),
+long experiments can keep their complete noise histories on disk:
+
+```python
+emulator = PioneerEmulator(
+    QPU.PIONEER_P10,
+    qubits=10,
+    seed=42,
+    max_used_core=1,
+    noise_directory="/path/to/job-scratch",
+)
+result = emulator.run_simulation(circuit, shots=1000)
+```
+
+The directory must already exist on a disk filesystem. Use a private job
+directory and clean it after the job; forced termination can leave temporary
+files behind. RAM-backed filesystems such as tmpfs do not save memory.
+SpinPulse preserves the complete trace duration and correlations across shots,
+using float64 samples. Disk usage grows with trace duration and the number of
+qubit and coupling histories. Memory still depends on the constituent FFT sizes
+and concurrent workers. Omitting `noise_directory` retains in-memory storage;
+`noise=False` does not create noise files.
+
+The new option requires the SpinPulse change above. Before releasing this draft,
+replace the CI preview dependency with that published version and raise the
+runtime dependency minimum accordingly.
+
 ## Transpilation
 
 The transpilation is done internally by the backend.

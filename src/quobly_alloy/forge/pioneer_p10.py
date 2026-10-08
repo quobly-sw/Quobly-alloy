@@ -1,8 +1,11 @@
 # --------------------------------------------------------------------------------------
 # Copyright (c) 2026 by Quobly
+# Modified by Kenny Heitritter in 2026: pass optional disk storage to SpinPulse.
 # --------------------------------------------------------------------------------------
 """Pioneer-P10 10 qubits hardware device description."""
 
+import os
+from functools import partial
 from typing import Final
 
 import numpy as np
@@ -65,14 +68,26 @@ def generate_environment(
 
 
 def attach_env_to_circuit(
-    specs, circuit: PulseCircuit, shots_number: int, seed: int | None
+    specs,
+    circuit: PulseCircuit,
+    shots_number: int,
+    seed: int | None,
+    *,
+    noise_directory: str | os.PathLike | None = None,
 ) -> ExperimentalEnvironment:
+    if noise_directory is not None and not os.fspath(noise_directory):
+        raise ValueError("noise_directory must name an existing directory")
     duration = circuit.duration * max(10, shots_number)
     if duration % 2 == 1:  # Odd value are not accepted by spin pulse.
         duration += 1
     if duration == 0:  # Edge case of empty circuit
         duration = 2
-    env: ExperimentalEnvironment = ExperimentalEnvironment(
+    environment_factory = (
+        partial(ExperimentalEnvironment, noise_directory=noise_directory)
+        if noise_directory is not None
+        else ExperimentalEnvironment
+    )
+    env: ExperimentalEnvironment = environment_factory(
         specs,
         noise_type=NoiseType.PINK,
         T2S=_T2S,

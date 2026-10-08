@@ -1,8 +1,11 @@
 # --------------------------------------------------------------------------------------
 # Copyright (c) 2026 by Quobly
+# Modified by Kenny Heitritter in 2026: expose optional disk-backed noise storage.
 # --------------------------------------------------------------------------------------
 """Module containing the Quobly Noise Accurate Simulator"""
 
+import os
+from functools import partial
 from typing import Callable
 
 from qiskit import QuantumCircuit
@@ -90,6 +93,8 @@ class PioneerEmulator(GenericBackendV2):
         seed: int | None = None,
         always_use_cpu: bool = False,
         max_used_core: int = 1,
+        *,
+        noise_directory: str | os.PathLike | None = None,
     ):
         self._always_use_cpu = always_use_cpu
         if target_qpu not in [QPU.PIONEER_P10]:
@@ -97,6 +102,10 @@ class PioneerEmulator(GenericBackendV2):
         options, nb_qbit, basis_gates, coupling_map, self._env_generative_function = (
             get_qpu_hw_spec(target_qpu, qubits=qubits, seed=seed)
         )
+        if noise_directory is not None:
+            self._env_generative_function = partial(
+                self._env_generative_function, noise_directory=noise_directory
+            )
         self._seed = seed
         super().__init__(
             num_qubits=nb_qbit, basis_gates=basis_gates, coupling_map=coupling_map
